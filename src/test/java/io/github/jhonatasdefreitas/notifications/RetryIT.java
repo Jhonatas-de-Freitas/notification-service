@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.amqp.core.Message;
@@ -79,12 +80,24 @@ class RetryIT extends IntegrationTest {
         assertThat(mailbox.messagesTo(email)).isEmpty();
     }
 
+    @Test
+    void aMessageTheConsumerCannotReadIsDeadLetteredToTheParkingLotInsteadOfLooping() {
+        String unreadable = "not-an-id-" + UUID.randomUUID();
+
+        rabbit.convertAndSend(RabbitTopology.EXCHANGE, RabbitTopology.SMS_QUEUE, unreadable, message -> {
+            message.getMessageProperties().setHeader(OutboxRelay.ATTEMPT_HEADER, 1);
+            return message;
+        });
+
+        assertThat(awaitInParkingLot(unreadable)).isNotNull();
+    }
+
     /** Other tests park messages too, so this takes them out until it finds the one it wants. */
-    private Message awaitInParkingLot(String notificationId) {
+    private Message awaitInParkingLot(String body) {
         Message[] found = new Message[1];
         await().atMost(PATIENCE).until(() -> {
             Message message = rabbit.receive(RabbitTopology.PARKING_LOT, 500);
-            if (message != null && notificationId.equals(new String(message.getBody(), StandardCharsets.UTF_8))) {
+            if (message != null && body.equals(new String(message.getBody(), StandardCharsets.UTF_8))) {
                 found[0] = message;
             }
             return found[0] != null;
