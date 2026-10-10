@@ -145,14 +145,21 @@ Chega o e-mail "Seu pedido #7C1F0A34 foi confirmado", com os itens e o total. Pu
 
 **Outbox em vez de publicar direto.** Se eu gravasse no banco e publicasse em seguida, uma queda entre os dois passos deixaria uma notificação gravada que ninguém entrega. Com a linha do outbox na mesma transação, ou existem as duas coisas ou nenhuma. O custo é que a mesma mensagem pode ser publicada duas vezes.
 
+**O confirm do broker não basta para apagar a linha.** O RabbitMQ também confirma a mensagem que não entrou em fila nenhuma (uma fila apagada pelo painel, por exemplo) e a descarta. Por isso o relay publica como `mandatory`: nesse caso o broker devolve a mensagem, a linha fica no outbox, o relay declara as filas de novo e ela sai na rodada seguinte (`OutboxIT`).
+
 **Como evita envio em dobro.** São três pontos, um para cada jeito de a repetição acontecer:
 - Pedido repetido: o `Idempotency-Key` (ou `event:<eventId>`, vindo do Kafka) tem índice único no banco. A segunda chamada devolve o que a primeira criou, mesmo quando as duas chegam juntas.
-- Mensagem repetida: o consumidor faz `SELECT ... FOR UPDATE` na notificação antes de chamar o provedor e só envia se aquela for a próxima tentativa esperada. Uma cópia espera na trava e, quando entra, vê a tentativa já registrada e não faz nada (`DuplicateDeliveryIT`).
+- Mensagem repetida: o consumidor faz `SELECT ... FOR UPDATE` na notificação antes de chamar o provedor e só envia se aquela for a próxima tentativa esperada. Uma cópia espera na trava e, quando entra, vê a tentativa já registrada e não faz nada. O `DuplicateDeliveryIT` segura a linha, deixa duas entregas da mesma mensagem paradas na trava, solta e confere que saiu um e-mail só. Sem o `FOR UPDATE` esse teste falha.
 - O que isso não resolve: se o serviço cair depois de o provedor aceitar e antes do commit, a tentativa é refeita. Entrega exatamente uma vez dependeria de o provedor aceitar uma chave de idempotência.
 
 **Como o agendador aguenta duas instâncias.** Todas as instâncias rodam o agendador, sem eleição de líder. Ele busca as vencidas com `FOR UPDATE SKIP LOCKED` e, na mesma transação, muda o estado para `PENDING` e grava a linha do outbox. A linha que uma instância pegou fica travada: a outra pula e leva as seguintes, sem esperar. Depois do commit a linha não é mais `SCHEDULED` e ninguém a encontra de novo. O `SchedulerConcurrencyIT` confere as duas coisas: com uma transação segurando três linhas, a segunda leva só as outras; e com três agendadores disputando 40 notificações, a fila recebe 40 mensagens, uma de cada.
 
-**Falha do provedor não é exceção no consumidor.** Ela vira uma tentativa registrada e uma nova espera. Exceção no consumidor é outra coisa (mensagem malformada, banco fora): a mensagem é rejeitada sem voltar para a fila e o RabbitMQ a manda para a fila de erros, em vez de ficar em laço.
+**Três tipos de falha no consumidor, três destinos.**
+- O provedor falhou: não é exceção. Vira uma tentativa registrada e uma nova espera.
+- O próprio serviço falhou (o banco caiu no meio da entrega): a transação desfez a tentativa, então nada foi registrado. O consumidor manda a mesma tentativa para a fila de espera, direto no RabbitMQ, e ela volta depois. São os mesmos intervalos e o mesmo limite das tentativas do provedor. O `ConsumerFailureIT` derruba a conexão do consumidor com o banco no meio de uma entrega e confere que o e-mail sai na volta.
+- A mensagem não dá para ler: é rejeitada sem voltar para a fila e o RabbitMQ a manda para a fila de erros, em vez de ficar em laço.
+
+Se o banco ficar fora por mais tempo que as esperas somadas, a mensagem também vai para a fila de erros. Aí a notificação continua `PENDING` ou `RETRYING` na API, porque ninguém conseguiu gravar outra coisa, até alguém reenviar a mensagem.
 
 **O texto é montado na hora do pedido.** Assunto e corpo ficam gravados na notificação, então um parâmetro inválido volta como `400` na hora e todas as tentativas enviam o mesmo conteúdo.
 
@@ -160,7 +167,7 @@ Chega o e-mail "Seu pedido #7C1F0A34 foi confirmado", com os itens e o total. Pu
 
 ## O que eu faria a seguir
 
-- Um endpoint para reenviar o que está na fila de erros.
+- Um endpoint para reenviar o que está na fila de erros, que hoje só sai de lá pelo painel do RabbitMQ.
 - Cancelar uma notificação agendada antes da hora.
 - Avisar o relay logo depois do commit, para não esperar a próxima leitura do outbox (hoje, até 1 s).
 - Guardar um resumo do corpo junto com o `Idempotency-Key`, para recusar a mesma chave com um pedido diferente.
