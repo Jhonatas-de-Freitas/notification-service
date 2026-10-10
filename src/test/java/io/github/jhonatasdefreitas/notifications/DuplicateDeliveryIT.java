@@ -8,7 +8,6 @@ import org.springframework.amqp.core.MessageListenerContainer;
 import org.springframework.amqp.rabbit.listener.RabbitListenerEndpointRegistry;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import io.github.jhonatasdefreitas.notifications.messaging.OutboxRelay;
 import io.github.jhonatasdefreitas.notifications.messaging.RabbitTopology;
 
 class DuplicateDeliveryIT extends IntegrationTest {
@@ -59,7 +58,7 @@ class DuplicateDeliveryIT extends IntegrationTest {
     private void publishFirstAttemptAgain(String notificationId) {
         rabbit.invoke(channel -> {
             channel.convertAndSend(RabbitTopology.EXCHANGE, RabbitTopology.EMAIL_QUEUE, notificationId, message -> {
-                message.getMessageProperties().setHeader(OutboxRelay.ATTEMPT_HEADER, 1);
+                message.getMessageProperties().setHeader(RabbitTopology.ATTEMPT_HEADER, 1);
                 return message;
             });
             channel.waitForConfirmsOrDie(PATIENCE.toMillis());

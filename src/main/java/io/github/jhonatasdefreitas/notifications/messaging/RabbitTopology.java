@@ -37,6 +37,9 @@ public class RabbitTopology {
     public static final String PUSH_QUEUE = "notifications.push";
     public static final String PARKING_LOT = "notifications.parking-lot";
 
+    public static final String ATTEMPT_HEADER = "x-attempt";
+    public static final String REDELIVERIES_HEADER = "x-redeliveries";
+
     public static String workQueue(Channel channel) {
         return switch (channel) {
             case EMAIL -> EMAIL_QUEUE;
@@ -50,7 +53,11 @@ public class RabbitTopology {
      * arguments: a new interval in the configuration gets a new queue instead of a startup error.
      */
     public static String waitQueue(Channel channel, Duration delay) {
-        return "%s.wait.%d".formatted(workQueue(channel), delay.toMillis());
+        return waitQueue(workQueue(channel), delay);
+    }
+
+    public static String waitQueue(String workQueue, Duration delay) {
+        return "%s.wait.%d".formatted(workQueue, delay.toMillis());
     }
 
     @Bean

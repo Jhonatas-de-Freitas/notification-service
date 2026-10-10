@@ -104,7 +104,6 @@ abstract class IntegrationTest {
                 .expectBody(JsonNode.class).returnResult().getResponseBody();
     }
 
-    /** Sends a request for a single channel and returns the id of the notification it created. */
     String sendOne(Map<String, Object> request) {
         JsonNode notifications = send(request).get("notifications");
         assertThat(notifications).hasSize(1);
@@ -155,6 +154,27 @@ abstract class IntegrationTest {
     void awaitPublished(String notificationId) {
         await().atMost(PATIENCE).until(() -> jdbc.sql("select count(*) from outbox where notification_id = ?::uuid")
                 .param(notificationId).query(Integer.class).single() == 0);
+    }
+
+    /**
+     * For a test that holds a row inside a transaction: waits until that many other database
+     * sessions are stopped behind it and returns their process ids.
+     */
+    List<Integer> awaitSessionsBlockedByThisTransaction(int sessions) {
+        // The second session in line waits for the first one, not for whoever holds the row,
+        // so the query follows the line to its end.
+        String blocked = """
+                with recursive blocked as (
+                    select pid from pg_stat_activity where pg_backend_pid() = any(pg_blocking_pids(pid))
+                    union
+                    select waiting.pid from pg_stat_activity waiting
+                      join blocked on blocked.pid = any(pg_blocking_pids(waiting.pid))
+                )
+                select pid from blocked
+                """;
+        // Asked from the calling thread, because the transaction that holds the row is bound to it.
+        return await().pollInSameThread().atMost(PATIENCE).until(
+                () -> jdbc.sql(blocked).query(Integer.class).list(), pids -> pids.size() == sessions);
     }
 
     double deliveries(String channel, String result) {

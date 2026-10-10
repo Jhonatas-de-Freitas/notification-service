@@ -12,7 +12,6 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.amqp.core.Message;
 
-import io.github.jhonatasdefreitas.notifications.messaging.OutboxRelay;
 import io.github.jhonatasdefreitas.notifications.messaging.RabbitTopology;
 import tools.jackson.databind.JsonNode;
 
@@ -53,7 +52,7 @@ class RetryIT extends IntegrationTest {
         assertThat(successes(failed)).containsExactly(false, false, false, false);
         assertThat(failed.get("sentAt").isNull()).isTrue();
         Message parked = awaitInParkingLot(id);
-        assertThat(parked.getMessageProperties().<Integer>getHeader(OutboxRelay.ATTEMPT_HEADER)).isEqualTo(4);
+        assertThat(parked.getMessageProperties().<Integer>getHeader(RabbitTopology.ATTEMPT_HEADER)).isEqualTo(4);
     }
 
     @Test
@@ -85,7 +84,7 @@ class RetryIT extends IntegrationTest {
         String unreadable = "not-an-id-" + UUID.randomUUID();
 
         rabbit.convertAndSend(RabbitTopology.EXCHANGE, RabbitTopology.SMS_QUEUE, unreadable, message -> {
-            message.getMessageProperties().setHeader(OutboxRelay.ATTEMPT_HEADER, 1);
+            message.getMessageProperties().setHeader(RabbitTopology.ATTEMPT_HEADER, 1);
             return message;
         });
 
