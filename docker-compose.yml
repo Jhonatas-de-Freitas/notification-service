@@ -52,5 +52,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/notifications_db
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_MAIL_HOST: mailpit
+      # Wait after each failed attempt. Set it in the shell to watch the retries faster or slower.
+      NOTIFICATIONS_RETRY_INTERVALS: ${NOTIFICATIONS_RETRY_INTERVALS:-5s,15s,45s}
     ports:
       - "8084:8084"
