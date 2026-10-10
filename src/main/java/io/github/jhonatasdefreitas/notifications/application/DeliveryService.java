@@ -73,8 +73,9 @@ public class DeliveryService {
         Instant now = clock.instant();
         notification.recordSuccess(now);
         count(notification, "sent");
+        // Counted from the scheduled time, so a notification scheduled for tomorrow does not look a day late.
         metrics.timer("notifications.delivery.time", "channel", notification.getChannel().name())
-                .record(Duration.between(notification.getCreatedAt(), now));
+                .record(Duration.between(notification.dueAt(), now));
         log.info("Notification {} sent by {} on attempt {}", notificationId, notification.getChannel(), attempt);
     }
 

@@ -27,7 +27,12 @@ public final class Fixtures {
     }
 
     public static Notification pending(Channel channel, Recipient recipient) {
-        return new Notification(UUID.randomUUID(), request(recipient, null), channel,
+        return scheduled(channel, recipient, null);
+    }
+
+    /** Created at {@link #NOW}, to leave at the given time. */
+    public static Notification scheduled(Channel channel, Recipient recipient, Instant scheduledAt) {
+        return new Notification(UUID.randomUUID(), request(recipient, scheduledAt), channel,
                 new Message("Olá", "Texto livre"), EVERYTHING_ON, NOW);
     }
 }

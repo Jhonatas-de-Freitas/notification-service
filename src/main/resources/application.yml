@@ -25,6 +25,12 @@ spring:
         prefetch: 10
         # A message the consumer cannot handle goes to the parking lot instead of looping forever.
         default-requeue-rejected: false
+  task:
+    scheduling:
+      pool:
+        # The outbox relay can wait for seconds on a broker that is down.
+        # A second thread keeps the scheduler on time meanwhile.
+        size: 2
   mail:
     host: localhost
     port: 1025
@@ -39,6 +45,9 @@ notifications:
     # Wait after the 1st, 2nd and 3rd failed attempt. Short on purpose, to watch it happen.
     intervals: 5s,15s,45s
   outbox:
+    poll-interval: 1s
+  scheduler:
+    # How often the scheduled notifications are checked, so one can leave up to this long after its time.
     poll-interval: 1s
   mail:
     from: "Loja Exemplo <loja@exemplo.com>"

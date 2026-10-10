@@ -1,5 +1,6 @@
 package io.github.jhonatasdefreitas.notifications.persistence;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -22,6 +23,16 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select n from Notification n where n.id = :id")
     Optional<Notification> findByIdForUpdate(@Param("id") UUID id);
+
+    // SKIP LOCKED is what lets two instances run the scheduler: each one takes the rows the other is not holding.
+    @Query(nativeQuery = true, value = """
+            select * from notifications
+             where status = 'SCHEDULED' and scheduled_at <= :now
+             order by scheduled_at
+             limit :limit
+               for update skip locked
+            """)
+    List<Notification> lockDue(@Param("now") Instant now, @Param("limit") int limit);
 
     /** Every argument is optional: a null one does not filter. */
     static Specification<Notification> matching(String userId, UUID orderId, NotificationStatus status) {

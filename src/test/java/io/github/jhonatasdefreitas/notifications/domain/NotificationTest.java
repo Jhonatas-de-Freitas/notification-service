@@ -6,6 +6,7 @@ import static io.github.jhonatasdefreitas.notifications.Fixtures.NOW;
 import static io.github.jhonatasdefreitas.notifications.Fixtures.pending;
 import static io.github.jhonatasdefreitas.notifications.Fixtures.request;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -57,6 +58,33 @@ class NotificationTest {
         Notification notification = create(Channel.SMS, ANA, Preferences.defaultsFor("c-1001"), NOW.plusSeconds(10));
 
         assertThat(notification.getStatus()).isEqualTo(NotificationStatus.SKIPPED);
+    }
+
+    @Test
+    void aScheduledNotificationAwaitsItsFirstAttemptOnlyAfterItIsReleased() {
+        Notification notification = create(Channel.EMAIL, ANA, EVERYTHING_ON, NOW.plusSeconds(10));
+        assertThat(notification.awaitsAttempt(1)).isFalse();
+
+        notification.release();
+
+        assertThat(notification.getStatus()).isEqualTo(NotificationStatus.PENDING);
+        assertThat(notification.awaitsAttempt(1)).isTrue();
+    }
+
+    @Test
+    void onlyAScheduledNotificationCanBeReleased() {
+        Notification sent = pending(Channel.EMAIL, ANA);
+        sent.recordSuccess(NOW);
+
+        assertThatThrownBy(sent::release).isInstanceOf(IllegalStateException.class);
+        assertThat(sent.getStatus()).isEqualTo(NotificationStatus.SENT);
+    }
+
+    @Test
+    void isDueAtTheScheduledTimeOrAtCreationWhenThereIsNoneAhead() {
+        assertThat(create(Channel.EMAIL, ANA, EVERYTHING_ON, NOW.plusSeconds(10)).dueAt()).isEqualTo(NOW.plusSeconds(10));
+        assertThat(create(Channel.EMAIL, ANA, EVERYTHING_ON, NOW.minusSeconds(10)).dueAt()).isEqualTo(NOW);
+        assertThat(create(Channel.EMAIL, ANA, EVERYTHING_ON, null).dueAt()).isEqualTo(NOW);
     }
 
     @Test

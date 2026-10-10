@@ -100,6 +100,19 @@ public class Notification {
         return inFlight && attempts.size() == number - 1;
     }
 
+    /** The time of a scheduled notification has come: from here on it is delivered like any other. */
+    public void release() {
+        if (status != NotificationStatus.SCHEDULED) {
+            throw new IllegalStateException("Notification " + id + " is " + status + ", not SCHEDULED");
+        }
+        status = NotificationStatus.PENDING;
+    }
+
+    /** When the delivery was meant to start: the scheduled time, or the creation when there is none ahead. */
+    public Instant dueAt() {
+        return scheduledAt != null && scheduledAt.isAfter(createdAt) ? scheduledAt : createdAt;
+    }
+
     public void recordSuccess(Instant at) {
         attempts.add(new Attempt(this, attempts.size() + 1, at, null));
         status = NotificationStatus.SENT;

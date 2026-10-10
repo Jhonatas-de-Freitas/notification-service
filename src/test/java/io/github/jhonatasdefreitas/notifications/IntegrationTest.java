@@ -30,7 +30,8 @@ import tools.jackson.databind.JsonNode;
  */
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT, properties = {
         "notifications.retry.intervals=300ms,600ms,900ms",
-        "notifications.outbox.poll-interval=100ms"
+        "notifications.outbox.poll-interval=100ms",
+        "notifications.scheduler.poll-interval=100ms"
 })
 @AutoConfigureRestTestClient
 @Import(TestcontainersConfiguration.class)

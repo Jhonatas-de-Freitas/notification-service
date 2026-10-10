@@ -3,6 +3,7 @@ package io.github.jhonatasdefreitas.notifications.application;
 import static io.github.jhonatasdefreitas.notifications.Fixtures.ANA;
 import static io.github.jhonatasdefreitas.notifications.Fixtures.NOW;
 import static io.github.jhonatasdefreitas.notifications.Fixtures.pending;
+import static io.github.jhonatasdefreitas.notifications.Fixtures.scheduled;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -19,6 +20,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -65,6 +67,20 @@ class DeliveryServiceTest {
         assertThat(notification.getSentAt()).isEqualTo(NOW);
         verifyNoInteractions(deliveryQueue);
         assertThat(deliveries("sent")).isEqualTo(1);
+    }
+
+    @Test
+    void timesAScheduledDeliveryFromItsScheduledTime() {
+        Notification late = scheduled(Channel.SMS, ANA, NOW.plusSeconds(60));
+        late.release();
+        when(notifications.findByIdForUpdate(ID)).thenReturn(Optional.of(late));
+        DeliveryService twoSecondsLate = new DeliveryService(notifications, List.of(sender), POLICY, deliveryQueue,
+                metrics, Clock.fixed(NOW.plusSeconds(62), ZoneOffset.UTC));
+
+        twoSecondsLate.deliver(ID, 1);
+
+        assertThat(metrics.timer("notifications.delivery.time", "channel", "SMS").totalTime(TimeUnit.SECONDS))
+                .isEqualTo(2);
     }
 
     @Test
