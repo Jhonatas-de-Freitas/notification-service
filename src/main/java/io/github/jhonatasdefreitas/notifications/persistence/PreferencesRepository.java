@@ -1,14 +1,19 @@
 package io.github.jhonatasdefreitas.notifications.persistence;
 
-import org.springframework.data.jpa.repository.JpaRepository;
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 import io.github.jhonatasdefreitas.notifications.domain.Preferences;
 
-public interface PreferencesRepository extends JpaRepository<Preferences, String> {
+// No save() on purpose: the upsert is the only way to write, and it is the one that fills updated_at.
+public interface PreferencesRepository extends Repository<Preferences, String> {
+
+    Optional<Preferences> findById(String userId);
 
     // A single statement, so two first-time updates for the same user cannot collide on the primary key.
     @Modifying
