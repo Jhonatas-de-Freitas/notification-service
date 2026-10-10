@@ -40,7 +40,7 @@ class SmtpEmailSender implements ChannelSender {
     public void send(Notification notification, int attempt) {
         Recipient recipient = notification.getRecipient();
         if (recipient.email().toLowerCase(Locale.ROOT).endsWith(FAILING_DOMAIN)) {
-            throw new DeliveryException("Servidor de e-mail recusou o destinatário (falha simulada)");
+            throw new DeliveryException("Mail server refused the recipient (simulated failure)");
         }
         try {
             MimeMessage message = mailSender.createMimeMessage();

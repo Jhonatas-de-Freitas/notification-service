@@ -25,10 +25,10 @@ class SimulatedSmsSender implements ChannelSender {
     public void send(Notification notification, int attempt) {
         String phone = notification.getRecipient().phone();
         if (phone.endsWith("0000")) {
-            throw new DeliveryException("Operadora recusou o número " + phone + " (falha simulada)");
+            throw new DeliveryException("Carrier refused the number " + phone + " (simulated failure)");
         }
         if (phone.endsWith("0001") && attempt <= 2) {
-            throw new DeliveryException("Operadora indisponível no momento (falha simulada)");
+            throw new DeliveryException("Carrier unavailable at the moment (simulated failure)");
         }
         log.info("SMS for notification {} to {}: {}", notification.getId(), phone, notification.getBody());
     }

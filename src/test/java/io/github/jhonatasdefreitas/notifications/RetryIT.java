@@ -27,7 +27,7 @@ class RetryIT extends IntegrationTest {
 
         assertThat(successes(sent)).containsExactly(false, false, true);
         assertThat(sent.get("attempts").get(0).get("number").asInt()).isEqualTo(1);
-        assertThat(sent.get("attempts").get(0).get("error").asString()).contains("falha simulada");
+        assertThat(sent.get("attempts").get(0).get("error").asString()).contains("simulated failure");
         assertThat(sent.get("attempts").get(2).get("error").isNull()).isTrue();
         assertThat(sent.get("sentAt").asString()).isEqualTo(sent.get("attempts").get(2).get("at").asString());
     }

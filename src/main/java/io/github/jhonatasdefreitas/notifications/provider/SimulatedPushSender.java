@@ -25,10 +25,10 @@ class SimulatedPushSender implements ChannelSender {
     public void send(Notification notification, int attempt) {
         String deviceToken = notification.getRecipient().deviceToken();
         if (deviceToken.startsWith("fail-")) {
-            throw new DeliveryException("Dispositivo não está mais registrado (falha simulada)");
+            throw new DeliveryException("Device is no longer registered (simulated failure)");
         }
         if (deviceToken.startsWith("flaky-") && attempt <= 2) {
-            throw new DeliveryException("Dispositivo não respondeu (falha simulada)");
+            throw new DeliveryException("Device did not respond (simulated failure)");
         }
         log.info("Push for notification {} to {}: {} - {}", notification.getId(), deviceToken,
                 notification.getSubject(), notification.getBody());
