@@ -25,6 +25,18 @@ spring:
         prefetch: 10
         # A message the consumer cannot handle goes to the parking lot instead of looping forever.
         default-requeue-rejected: false
+  kafka:
+    bootstrap-servers: localhost:29092
+    consumer:
+      group-id: notification-service
+      auto-offset-reset: earliest
+    producer:
+      # Only used to move a message to the dead letter topic. Short limits, so a broker that is
+      # down does not hold the consumer for the one minute the client waits by default.
+      properties:
+        max.block.ms: 5000
+        request.timeout.ms: 5000
+        delivery.timeout.ms: 10000
   task:
     scheduling:
       pool:
@@ -49,6 +61,15 @@ notifications:
   scheduler:
     # How often the scheduled notifications are checked, so one can leave up to this long after its time.
     poll-interval: 1s
+  events:
+    # Listens to orders.events on Kafka. Off by default, so the service runs without a broker.
+    enabled: ${KAFKA_ENABLED:false}
+    retry:
+      # Attempts in total, counting the first one, before the message goes to notification-service.dlt.
+      max-attempts: 4
+      initial-interval: 200ms
+      multiplier: 2.0
+      max-interval: 5s
   mail:
     from: "Loja Exemplo <loja@exemplo.com>"
 

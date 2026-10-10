@@ -24,14 +24,15 @@ import io.micrometer.core.instrument.MeterRegistry;
 import tools.jackson.databind.JsonNode;
 
 /**
- * The whole service against real PostgreSQL, RabbitMQ and Mailpit. Every integration test
- * shares this configuration, so the containers and the application start once. Tests keep
+ * The whole service against real PostgreSQL, RabbitMQ, Kafka and Mailpit. Every integration
+ * test shares this configuration, so the containers and the application start once. Tests keep
  * out of each other's way by using a user and an address of their own.
  */
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT, properties = {
         "notifications.retry.intervals=300ms,600ms,900ms",
         "notifications.outbox.poll-interval=100ms",
-        "notifications.scheduler.poll-interval=100ms"
+        "notifications.scheduler.poll-interval=100ms",
+        "notifications.events.enabled=true"
 })
 @AutoConfigureRestTestClient
 @Import(TestcontainersConfiguration.class)
