@@ -45,7 +45,7 @@ class NotificationController {
     @ResponseStatus(HttpStatus.ACCEPTED)
     AcceptedResponse send(@Valid @RequestBody SendNotificationRequest request,
             @RequestHeader(name = IDEMPOTENCY_KEY, required = false) String idempotencyKey) {
-        String key = idempotencyKey == null || idempotencyKey.isBlank() ? null : idempotencyKey.strip();
+        String key = blankToNull(idempotencyKey);
         if (key != null && key.length() > MAX_KEY_LENGTH) {
             throw new InvalidRequestException(IDEMPOTENCY_KEY, "must have at most " + MAX_KEY_LENGTH + " characters");
         }
@@ -61,8 +61,9 @@ class NotificationController {
             @RequestParam(defaultValue = "20") int size) {
         PageRequest pageRequest = PageRequest.of(Math.max(page, 0), Math.clamp(size, 1, MAX_PAGE_SIZE),
                 Sort.by(Sort.Order.desc("createdAt"), Sort.Order.asc("id")));
-        Page<Notification> found = notifications.findAll(NotificationRepository.matching(userId, orderId, status),
-                pageRequest);
+        // "?userId=" arrives as an empty text, not as a missing parameter. It must not filter either.
+        Page<Notification> found = notifications.findAll(
+                NotificationRepository.matching(blankToNull(userId), orderId, status), pageRequest);
         return PageResponse.of(found, NotificationResponse::of);
     }
 
@@ -71,5 +72,9 @@ class NotificationController {
         return notifications.findById(id)
                 .map(NotificationResponse::of)
                 .orElseThrow(() -> new NotFoundException("Notification " + id + " not found"));
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.strip();
     }
 }

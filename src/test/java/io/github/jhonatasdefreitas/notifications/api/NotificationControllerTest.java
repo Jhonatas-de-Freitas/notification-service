@@ -5,7 +5,6 @@ import static io.github.jhonatasdefreitas.notifications.Fixtures.NOW;
 import static io.github.jhonatasdefreitas.notifications.Fixtures.pending;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.any;
@@ -163,7 +162,44 @@ class NotificationControllerTest {
                 .andExpect(jsonPath("$.type").value("about:blank"))
                 .andExpect(jsonPath("$.title").value("Bad Request"))
                 .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.instance").value("/notifications"));
+                .andExpect(jsonPath("$.detail").value("The request has invalid fields"))
+                .andExpect(jsonPath("$.instance").value("/notifications"))
+                .andExpect(jsonPath("$.errors", hasSize(1)))
+                .andExpect(jsonPath("$.errors[0].field").value("channels[0]"))
+                .andExpect(jsonPath("$.errors[0].message").value("must be one of EMAIL, SMS, PUSH"));
+        verifyNoInteractions(service);
+    }
+
+    @Test
+    void refusesATemplateThatDoesNotExist() throws Exception {
+        postNotification("""
+                { "userId": "c-1001", "template": "ORDER_SHIPPED", "recipient": { "name": "Ana Souza" } }
+                """)
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.errors[0].field").value("template"))
+                .andExpect(jsonPath("$.errors[0].message")
+                        .value("must be one of ORDER_RECEIVED, ORDER_CONFIRMED, ORDER_CANCELLED, GENERIC"));
+    }
+
+    @Test
+    void refusesAValueOfTheWrongTypeNamingItsField() throws Exception {
+        postNotification("""
+                { "userId": "c-1001", "template": "GENERIC", "recipient": { "name": "Ana Souza" },
+                  "scheduledAt": "tomorrow" }
+                """)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[0].field").value("scheduledAt"))
+                .andExpect(jsonPath("$.errors[0].message").value("has an invalid format"));
+    }
+
+    @Test
+    void refusesABodyThatIsNotJsonWithoutBlamingAField() throws Exception {
+        postNotification("{ not json")
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.type").value("about:blank"))
+                .andExpect(jsonPath("$.errors").doesNotExist());
     }
 
     @Test
@@ -255,7 +291,19 @@ class NotificationControllerTest {
         mvc.perform(get("/notifications").param("status", "LOST"))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
-                .andExpect(jsonPath("$.detail", containsString("status")));
+                .andExpect(jsonPath("$.type").value("about:blank"))
+                .andExpect(jsonPath("$.instance").value("/notifications"))
+                .andExpect(jsonPath("$.errors[0].field").value("status"))
+                .andExpect(jsonPath("$.errors[0].message")
+                        .value("must be one of SCHEDULED, PENDING, RETRYING, SENT, FAILED, SKIPPED"));
+    }
+
+    @Test
+    void refusesAnIdThatIsNotAUuid() throws Exception {
+        mvc.perform(get("/notifications/{id}", "42"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[0].field").value("id"))
+                .andExpect(jsonPath("$.errors[0].message").value("has an invalid format"));
     }
 
     @Test

@@ -81,6 +81,18 @@ class NotificationApiIT extends IntegrationTest {
     }
 
     @Test
+    void aFilterLeftEmptyDoesNotFilter() {
+        UUID orderId = UUID.randomUUID();
+        JsonNode aboutTheOrder = send(orderReceived(newUser(), orderId)).get("notifications");
+
+        JsonNode found = list("userId=&orderId=" + orderId + "&status=&page=&size=");
+
+        assertThat(ids(found)).containsExactlyInAnyOrder(
+                aboutTheOrder.get(0).get("id").asString(), aboutTheOrder.get(1).get("id").asString());
+        assertThat(found.get("size").asInt()).isEqualTo(20);
+    }
+
+    @Test
     void theListIsPagedWithTheNewestFirst() {
         String userId = newUser();
         String first = sendOne(generic(userId, emailRecipient(newEmail()), "EMAIL"));

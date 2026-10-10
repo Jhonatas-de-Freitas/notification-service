@@ -1,24 +1,31 @@
 package io.github.jhonatasdefreitas.notifications.api;
 
 import java.net.URI;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.TypeMismatchException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 import io.github.jhonatasdefreitas.notifications.domain.InvalidRequestException;
 import io.github.jhonatasdefreitas.notifications.domain.InvalidRequestException.Violation;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.exc.MismatchedInputException;
 
 /** Every error leaves as application/problem+json. The base class already covers the ones Spring raises. */
 @RestControllerAdvice
@@ -35,6 +42,29 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
                 .sorted(Comparator.comparing(Violation::field))
                 .toList();
         return handleExceptionInternal(ex, invalidFields(errors), headers, status, request);
+    }
+
+    // A value that does not fit its field, such as a channel that does not exist, fails while the
+    // JSON is read, before the validation. It still names a field, so it is reported like the others.
+    // Text that is not JSON at all names none and keeps the answer Spring gives.
+    @Override
+    protected ResponseEntity<Object> handleHttpMessageNotReadable(HttpMessageNotReadableException ex,
+            HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+        if (ex.getCause() instanceof MismatchedInputException mismatch && !mismatch.getPath().isEmpty()) {
+            Violation error = new Violation(fieldAt(mismatch.getPath()), expectedFor(mismatch.getTargetType()));
+            return handleExceptionInternal(ex, invalidFields(List.of(error)), headers, status, request);
+        }
+        return super.handleHttpMessageNotReadable(ex, headers, status, request);
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleTypeMismatch(TypeMismatchException ex, HttpHeaders headers,
+            HttpStatusCode status, WebRequest request) {
+        if (ex instanceof MethodArgumentTypeMismatchException parameter) {
+            Violation error = new Violation(parameter.getName(), expectedFor(parameter.getRequiredType()));
+            return handleExceptionInternal(ex, invalidFields(List.of(error)), headers, status, request);
+        }
+        return super.handleTypeMismatch(ex, headers, status, request);
     }
 
     @ExceptionHandler(InvalidRequestException.class)
@@ -62,6 +92,26 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
             problem.setType(NO_SPECIFIC_TYPE);
         }
         return super.createResponseEntity(body, headers, status, request);
+    }
+
+    private static String fieldAt(List<JacksonException.Reference> path) {
+        StringBuilder field = new StringBuilder();
+        for (JacksonException.Reference step : path) {
+            if (step.getPropertyName() == null) {
+                field.append('[').append(step.getIndex()).append(']');
+            } else {
+                field.append(field.isEmpty() ? "" : ".").append(step.getPropertyName());
+            }
+        }
+        return field.toString();
+    }
+
+    private static String expectedFor(Class<?> type) {
+        if (type == null || !type.isEnum()) {
+            return "has an invalid format";
+        }
+        return Arrays.stream(type.getEnumConstants()).map(String::valueOf)
+                .collect(Collectors.joining(", ", "must be one of ", ""));
     }
 
     private static ProblemDetail invalidFields(List<Violation> errors) {
