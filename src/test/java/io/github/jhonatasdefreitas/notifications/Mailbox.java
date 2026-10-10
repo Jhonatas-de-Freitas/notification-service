@@ -6,7 +6,6 @@ import org.springframework.web.client.RestClient;
 
 import tools.jackson.databind.JsonNode;
 
-/** Reads what arrived at Mailpit through its HTTP API. */
 class Mailbox {
 
     private final RestClient http;

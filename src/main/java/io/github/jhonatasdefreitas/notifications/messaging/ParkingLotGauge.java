@@ -7,7 +7,6 @@ import org.springframework.stereotype.Component;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 
-/** Publishes how many messages sit in the parking lot. Anything above zero deserves a look. */
 @Component
 class ParkingLotGauge {
 

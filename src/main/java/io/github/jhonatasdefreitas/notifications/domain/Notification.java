@@ -21,7 +21,6 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 
-/** One message to one recipient through one channel, and everything that happened to it. */
 @Entity
 @Table(name = "notifications")
 public class Notification {
@@ -100,7 +99,6 @@ public class Notification {
         return inFlight && attempts.size() == number - 1;
     }
 
-    /** The time of a scheduled notification has come: from here on it is delivered like any other. */
     public void release() {
         if (status != NotificationStatus.SCHEDULED) {
             throw new IllegalStateException("Notification " + id + " is " + status + ", not SCHEDULED");

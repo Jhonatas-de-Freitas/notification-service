@@ -24,7 +24,6 @@ public class Preferences {
         this.push = push;
     }
 
-    /** What applies to a user who never configured anything. */
     public static Preferences defaultsFor(String userId) {
         return new Preferences(userId, true, false, true);
     }
