@@ -1,10 +1,13 @@
 # notification-service
 
 [![CI](https://github.com/Jhonatas-de-Freitas/notification-service/actions/workflows/ci.yml/badge.svg)](https://github.com/Jhonatas-de-Freitas/notification-service/actions/workflows/ci.yml)
+![Java 21](https://img.shields.io/badge/Java-21-blue)
 
 Serviço de notificações por e-mail, SMS e push. Quem pede a notificação não espera a entrega: o serviço aceita, grava, põe na fila e entrega depois, tentando de novo quando o canal falha. Também agenda para mais tarde.
 
-Faz parte de uma loja fictícia que montei em cinco repositórios, mas roda sozinho. Java 21, Spring Boot 4.1, RabbitMQ, PostgreSQL e, opcional, Kafka.
+Java 21, Spring Boot 4.1, RabbitMQ, PostgreSQL e, opcional, Kafka. Roda sozinho, sem precisar dos outros projetos.
+
+Este repositório faz parte de um sistema de pedidos com 5 repositórios. Os outros são o [order-platform](https://github.com/Jhonatas-de-Freitas/order-platform) (que publica os eventos de pedido), o [api-gateway](https://github.com/Jhonatas-de-Freitas/api-gateway), o [order-dashboard](https://github.com/Jhonatas-de-Freitas/order-dashboard) e o [order-analytics](https://github.com/Jhonatas-de-Freitas/order-analytics).
 
 ## Como funciona
 
@@ -62,7 +65,7 @@ As métricas do serviço: `notifications_deliveries_total` (por canal e resultad
 
 Para ver as tentativas mais rápido ou mais devagar: `NOTIFICATIONS_RETRY_INTERVALS=1s,2s,3s docker compose up -d`.
 
-Testes: `./mvnw verify`. Os de integração sobem PostgreSQL, RabbitMQ, Kafka e Mailpit com Testcontainers.
+Testes: `./mvnw verify`. Os de integração sobem PostgreSQL, RabbitMQ, Kafka e Mailpit com Testcontainers, então precisam de Docker. Sem Docker eles são pulados e rodam só os de unidade. O CI não aceita isso: se algum teste for pulado lá, o build falha.
 
 ## Como testar os cenários
 
@@ -172,3 +175,7 @@ Se o banco ficar fora por mais tempo que as esperas somadas, a mensagem também 
 - Avisar o relay logo depois do commit, para não esperar a próxima leitura do outbox (hoje, até 1 s).
 - Guardar um resumo do corpo junto com o `Idempotency-Key`, para recusar a mesma chave com um pedido diferente.
 - Horário de silêncio e limite de mensagens por usuário, que são as primeiras coisas que um sistema desses pede em produção.
+
+## Licença
+
+MIT. Veja o arquivo [LICENSE](LICENSE).
